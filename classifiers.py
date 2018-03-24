@@ -107,11 +107,14 @@ def sk_classify():
     #Summaries is a list of (model_name,f1_score) pairs
     summaries = list()
 
+
+    #Get dummy classifer results as baseline
+    #Definitely want to do better than these
     print("Dummy classifier (baseline) results:")
     for i in range(len(dummies)):
         model_name = strat_names[i]
         model = dummies[i]
-        print("Dummy model: {}\n".format(model_name))
+        print("Training dummy model: {}".format(model_name))
         model.fit(X_train,y_train)
 
         predictions = model.predict(X_test)
@@ -124,10 +127,11 @@ def sk_classify():
         except ValueError:
             print("{} only predicted no_rel for everything. Skipping results...".format(model_name))
 
+    #Get actual ML results
     for i in range(len(models)):
         model_name = model_names[i]
         model = models[i]
-        print("Model: {}\n".format(model_name))
+        print("Training model: {}".format(model_name))
         model.fit(X_train,y_train)
 
         predictions = model.predict(X_test)
