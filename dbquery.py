@@ -68,8 +68,14 @@ if __name__ == "__main__":
     entity0 = "China"
     entity1 = "Beijing"
     entity2 = "New_York"
+    entity3 = "Adam_Rippon"
+    entity4 = "Scranton,_Pennsylvania"
 
     result0 = relation_exists(entity0,entity1)
     print("Relation exists between {} and {}: {}".format(entity0,entity1,result0))
+
     result1 = relation_exists(entity0,entity2)
     print("Relation exists between {} and {}: {}".format(entity0,entity2,result1))
+
+    result2 = relation_exists(entity3,entity4)
+    print("Relation exists between {} and {}: {}".format(entity3,entity4,result2))
