@@ -30,6 +30,11 @@ def do_query(first_entity,second_entity):
     sparql = SPARQLWrapper("http://dbpedia.org/sparql")
     sparql.setReturnFormat(JSON)
 
+    """The following SPARQL query looks for all relationships
+    between the two entities. Note we have to use the long form
+    (i.e. no prefix),because entities may have periods etc. in their names.
+    """
+
     query_text = """PREFIX db:<http://dbpedia.org/resource/>
         SELECT ?relationship
         WHERE {{
