@@ -1,40 +1,35 @@
 """Classifiers
 Tries various ML classifiers and prints results to stoud
 How to run:
-1. Ensure that TRAIN_GOLD, DEV_GOLD, TEST_GOLD, POS_TAGGED refer to correct file paths
-2. Ensure that countries.txt, json files are in the same directory as classifiers.py
-2. Run from command line and save to text file if you want:
-    python classifiers.py > classifier_results.txt
+1. Ensure that TRAIN_GOLD, DEV_GOLD, TEST_GOLD refer to correct file paths
+2. Ensure that countries.txt, json files, postagged files refer to correct filepaths
+2. Run from command line (and save to text file if you want):
+    $ python classifiers.py > classifier_results.txt
 """
 
-import dbquery
 import pandas as pd
-import numpy as np
 import json
 import os
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.linear_model import SGDClassifier, LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score
-from sklearn.metrics import classification_report
-from sklearn.dummy import DummyClassifier
-import itertools
+from sklearn.svm import *
+from sklearn.metrics import *
 
-TRAIN_GOLD = ""
-DEV_GOLD = ""
-TEST_GOLD = ""
-POS_TAGGED = ""
+TRAIN_GOLD = "...\\data\\rel-trainset.gold"
+DEV_GOLD = "...data\\rel-devset.gold"
+TEST_GOLD = "...\\rel-testset.gold"
+POS_TAGGED = "...\\postagged-files"
 
 #Column names for gold data
 COLUMNS = "Rel,File,Word0Sent,Word0Start,Word0End,Word0NE,Word0Num,Word0Token,Word1Sent,Word1Start,Word1End,Word1NE,Word1Num,Word1Token".split(",")
 
+#Baseline features from column data
 FEATURES = ["Word0NE","Word0Token","Word1NE","Word1Token", "Word0Num", "Word1Num"]
 
 LABEL = "Rel"
 
 def make_dict(df):
-    """
+    """Make dictionaries that map filenames to rawtext for finding pos tag of mentions
     :param df: pandas dataframe
     :return: dict with key=filename and value=(text, pos) tuples in a nested list of sentences
     """
@@ -51,30 +46,8 @@ def make_dict(df):
             filedict[row['File']] = sents
     return filedict
 
-#TODO:fix maybe?
-def get_prev_word(sent_idx, word_idx, sents):
-    """
-    :param sent_idx:
-    :param word_idx:
-    :param sents: rawtext associated with the file
-    :return: word before mention1
-    """
-    if word_idx > 0 :
-        return sents[sent_idx][word_idx - 1][0]
-
-#TODO:fix maybe?
-def get_next_word(sent_idx, word_idx, sents):
-    """
-    :param sent_idx:
-    :param word_idx:
-    :param sents: rawtext associated with the file
-    :return: word after mention2
-    """
-    if word_idx + 1 < len(sents[sent_idx]):
-        return sents[sent_idx][word_idx + 1][0]
-
 def word_in_both(word0, word1):
-    """
+    """Find if mentions share a word
     :param word0: mention1
     :param word1: mention2
     :return: bool: is the same word in both mentions?
@@ -83,11 +56,8 @@ def word_in_both(word0, word1):
     mention2 = word1.split("_")
     return not set(mention1).isdisjoint(mention2)
 
-#TODO: fix maybe?
-# def number_mentions_between(word0end, word1start, sent_idx, sents):
-
 def mention_level_combo(word0sentidx, word0startidx, word1sentidx, word1startidx, sents):
-    """
+    """Combine mention level POS tags, eg nominal-pronominal, name-nominal, etc.
     :param word0sentidx:
     :param word0startidx:
     :param word1sentidx:
@@ -128,26 +98,23 @@ def featurize(df, dbp, filedict, features=FEATURES, label=LABEL):
 
         #pos-pos for combination of mention level
         #ex: Name-nominal (NNP-NN), name-pronominal(NNP-$PRP), nominal-pronominal (NN-$PRP)
-        datum['ML12'] = mention_level_combo(row['Word0Sent'], row['Word0Start'],
-                                            row['Word1Sent'], row['Word1Start'],
-                                            filedict[row['File']])
+        # datum['ML12'] = mention_level_combo(row['Word0Sent'], row['Word0Start'],
+        #                                     row['Word1Sent'], row['Word1Start'],
+        #                                     filedict[row['File']])
 
         #bool: does relation exist in data extracted from dbpedia?
-        datum['DBPRelExists'] = False
-        if row['Word0Token'] in dbp and row['Word1Token'] in dbp[row['Word0Token']]:
-            datum['DBPRelExists'] = True
+        # datum['DBPRelExists'] = False
+        # if row['Word0Token'] in dbp and row['Word1Token'] in dbp[row['Word0Token']]:
+        #     datum['DBPRelExists'] = True
+        # if row['Word1Token'] in dbp and row['Word0Token'] in dbp[row['Word1Token']]:
+        #     datum['DBPRelExists'] = True
 
         # entity type of M1 when M2 is country, entity type of M2 when M1 is country
-        with open('countries.txt') as f:
-            country_list = [line for line in f]
-        datum['ET1Country'] = row['Word0NE'] if row['Word1Token'] in country_list else ""
-        datum['CountryET2'] = row['Word1NE'] if row['Word0Token'] in country_list else ""
+        # with open('countries.txt') as f:
+        #     country_list = [line for line in f]
+        # datum['ET1Country'] = row['Word0NE'] if row['Word1Token'] in country_list else ""
+        # datum['CountryET2'] = row['Word1NE'] if row['Word0Token'] in country_list else ""
 
-        # UNUSED FEATURES
-        # datum['WBM1'] = get_prev_word(row['Word0Sent'], row['Word0Start'], filedict[row['File']])
-        # datum['WAM2'] = get_next_word(row['Word1Sent'], row['Word1End'], filedict[row['File']])
-        # datum['#MB'] = number_mentions_between(row['Word0End'], row['Word1Start'], row['Word0Sent'], filedict[row['File']])
-        
         data_list.append(datum)
 
     return data_list, y
@@ -163,7 +130,7 @@ def sk_input(train_data=TRAIN_GOLD, dev_data=DEV_GOLD, test_data=TEST_GOLD):
     dev = pd.read_csv(DEV_GOLD,sep='\t',names=COLUMNS)
     test = pd.read_csv(TEST_GOLD,sep='\t',names=COLUMNS)
 
-    #load dbp json files
+    #load json files of dbpedia information
     with open('dbp_train.json') as f:
         dbp_train = json.load(f)
     with open('dbp_dev.json') as f:
@@ -171,7 +138,7 @@ def sk_input(train_data=TRAIN_GOLD, dev_data=DEV_GOLD, test_data=TEST_GOLD):
     with open('dbp_test.json') as f:
         dbp_test = json.load(f)
 
-    #make rawtext dicts
+    #get rawtext dictionaries
     train_dict = make_dict(train)
     dev_dict = make_dict(dev)
     test_dict = make_dict(test)
@@ -197,49 +164,25 @@ def mallet_input():
 
 def sk_classify():
     """Use scikit-learn to classify the data
-    Classifiers tested: SGD, Logistic Regression, Decision Tree
+    Classifiers used:
+    SGD
+    Logistic Regression (MaxEnt)
+    LinearSVC (SVM)
     """
     X_train, y_train, X_dev, y_dev, X_test, y_test = sk_input()
 
-    # strat_names = ['Baseline (stratified)','Baseline (most_frequent)','Baseline (prior)','Baseline (uniform)']
-    # strats = ['stratified','most_frequent','prior','uniform']
-    # dummies = list()
-    # for strat in strats:
-    #     dummies.append(DummyClassifier(strategy=strat))
     model_names = ["SGD",
     "LogisticRegression",
-    "DecisionTree",
-#     "RandomForest",
+    "LinearSVC"
     ]
     models = [
         SGDClassifier(random_state=42),
         LogisticRegression(random_state=42),
-        DecisionTreeClassifier(max_depth=5),
-#         RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
+        LinearSVC(random_state=42)
         ]
 
     #Summaries is a list of (model_name,f1_score) pairs
     summaries = list()
-
-
-    #Get dummy classifer results as baseline
-    #Definitely want to do better than these
-    # print("Dummy classifier (baseline) results:")
-    # for i in range(len(dummies)):
-    #     model_name = strat_names[i]
-    #     model = dummies[i]
-    #     print("Training dummy model: {}".format(model_name))
-    #     model.fit(X_train,y_train)
-    #
-    #     predictions = model.predict(X_test)
-    #     labels_to_report = [label for label in predictions if label != "no_rel"]
-    #     try: #May except ValueError if only predicts no_rel
-    #         #Print classification report for detailed analysis
-    #         #print(classification_report(y_test,predictions,labels=labels_to_report))
-    #         f1 = f1_score(y_test,predictions,labels=labels_to_report,average='weighted')
-    #         summaries.append((model_name,f1))
-    #     except ValueError:
-    #         print("{} only predicted no_rel for everything. Skipping results...".format(model_name))
 
     #Get actual ML results
     for i in range(len(models)):
@@ -253,8 +196,11 @@ def sk_classify():
         try: #May except ValueError if only predicts no_rel
             #Print classification report for detailed analysis
             #print(classification_report(y_test,predictions,labels=labels_to_report))
-            f1 = f1_score(y_dev,predictions,labels=labels_to_report,average='weighted')
-            summaries.append((model_name,f1))
+            # f1 = f1_score(y_dev,predictions,labels=labels_to_report,average='weighted')
+            # precision = precision_score(y_dev, predictions,labels=labels_to_report, average='weighted')
+            # recall = recall_score(y_dev,predictions,labels=labels_to_report, average='weighted')
+            report = classification_report(y_dev,predictions,labels=labels_to_report)
+            summaries.append((model_name, report))
         except ValueError:
             print("{} only predicted no_rel for everything. Skipping results...".format(model_name))
 
