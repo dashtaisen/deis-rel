@@ -35,7 +35,8 @@ PARSED = os.sep.join((os.pardir,'data','parsed-files'))
 COLUMNS = "Rel,File,Word0Sent,Word0Start,Word0End,Word0NE,Word0Num,Word0Token,Word1Sent,Word1Start,Word1End,Word1NE,Word1Num,Word1Token".split(",")
 
 #Baseline features from column data
-FEATURES = ["Word0NE","Word0Token","Word1NE","Word1Token", "Word0Num", "Word1Num"]
+BASELINE_FEATURES = ["Word0NE","Word0Token","Word1NE","Word1Token", "Word0Num", "Word1Num"]
+ADDITIONAL_FEATURES = ['Chunking','ET12','#WB','WIBM','ML12','DBPRelExists','Countries']
 
 LABEL = "Rel"
 
@@ -45,7 +46,7 @@ def chunking_features(row):
     filename = row["File"]
     sent_index = row["Word0Sent"]
     # Punctuation in a token sometimes differs between a data file and a parsed file
-    # Also, proper names consisting of a first name and a last name are single tokens
+    # Also, proper names consisting of a first name and a last name are single token
     # broken up by an underscore in the data file, but two separate tokens in the parsed file
     word0tokens = [w for w in re.split('_|[^\w\.]', row["Word0Token"]) if w]
     word1tokens = [w for w in re.split('_|[^\w\.]', row["Word1Token"]) if w]
@@ -109,11 +110,12 @@ def mention_level_combo(word0sentidx, word0startidx, word1sentidx, word1startidx
     word1pos = sents[word1sentidx][word1startidx][1]
     return word0pos + word1pos
 
-def featurize(df, dbp, filedict, features=FEATURES, label=LABEL):
+def featurize(df, dbp, filedict, baseline_features=BASELINE_FEATURES, label=LABEL):
     """Convert data to features
     Inputs:
         df: pandas dataframe of data
         dbp: json cache of relations from dbpedia
+        baseline_features: list of baseline features
         filedict: dict linking filename to rawtext = {filename: [[(word,pos)],[(word,pos)] }
     Returns:
         X: list of features (as dicts)
@@ -124,40 +126,47 @@ def featurize(df, dbp, filedict, features=FEATURES, label=LABEL):
 
     for index, row in df.iterrows():
         datum = dict()
-        for feature in FEATURES:
+        for feature in BASELINE_FEATURES:
             datum[feature] = row[feature]
-            
-        chunk_features = chunking_features(row)
-        for chunk_feature in chunk_features:
-            datum[chunk_feature] = chunk_features[chunk_feature]
+        
+        if 'Chunking' in ADDITIONAL_FEATURES:    
+            chunk_features = chunking_features(row)
+            for chunk_feature in chunk_features:
+                datum[chunk_feature] = chunk_features[chunk_feature]
 
-        #combination of mention entity types, ex: PER-ORG, ORG-ORG
-        datum['ET12'] = row['Word0NE'] + row['Word1NE']
+        if 'ET12' in ADDITIONAL_FEATURES:
+            #combination of mention entity types, ex: PER-ORG, ORG-ORG
+            datum['ET12'] = row['Word0NE'] + row['Word1NE']
 
-        #number of words between mention1 and mention2
-        datum['#WB'] = row['Word1Start'] - row['Word0End']
+        if '#WB' in ADDITIONAL_FEATURES:
+            #number of words between mention1 and mention2
+            datum['#WB'] = row['Word1Start'] - row['Word0End']
 
-        #word in both mentions
-        datum['WIBM'] = word_in_both(row['Word0Token'], row['Word1Token'])
+        if '#WIBM' in ADDITIONAL_FEATURES:
+            #word in both mentions
+            datum['WIBM'] = word_in_both(row['Word0Token'], row['Word1Token'])
 
-        #pos-pos for combination of mention level
-        #ex: Name-nominal (NNP-NN), name-pronominal(NNP-$PRP), nominal-pronominal (NN-$PRP)
-        # datum['ML12'] = mention_level_combo(row['Word0Sent'], row['Word0Start'],
-        #                                     row['Word1Sent'], row['Word1Start'],
-        #                                     filedict[row['File']])
+        if 'ML12' in ADDITIONAL_FEATURES:
+            #pos-pos for combination of mention level
+            #ex: Name-nominal (NNP-NN), name-pronominal(NNP-$PRP), nominal-pronominal (NN-$PRP)
+            datum['ML12'] = mention_level_combo(row['Word0Sent'], row['Word0Start'],
+                                                 row['Word1Sent'], row['Word1Start'],
+                                                 filedict[row['File']])
 
-        #bool: does relation exist in data extracted from dbpedia?
-        # datum['DBPRelExists'] = False
-        # if row['Word0Token'] in dbp and row['Word1Token'] in dbp[row['Word0Token']]:
-        #     datum['DBPRelExists'] = True
-        # if row['Word1Token'] in dbp and row['Word0Token'] in dbp[row['Word1Token']]:
-        #     datum['DBPRelExists'] = True
+        if 'DBPRelExists' in ADDITIONAL_FEATURES:
+            #bool: does relation exist in data extracted from dbpedia?
+            datum['DBPRelExists'] = False
+            if row['Word0Token'] in dbp and row['Word1Token'] in dbp[row['Word0Token']]:
+                 datum['DBPRelExists'] = True
+            if row['Word1Token'] in dbp and row['Word0Token'] in dbp[row['Word1Token']]:
+                 datum['DBPRelExists'] = True
 
-        # entity type of M1 when M2 is country, entity type of M2 when M1 is country
-        # with open('countries.txt') as f:
-        #     country_list = [line for line in f]
-        # datum['ET1Country'] = row['Word0NE'] if row['Word1Token'] in country_list else ""
-        # datum['CountryET2'] = row['Word1NE'] if row['Word0Token'] in country_list else ""
+        if 'Countries' in ADDITIONAL_FEATURES:
+            #entity type of M1 when M2 is country, entity type of M2 when M1 is country
+            with open('countries.txt') as f:
+                 country_list = [line for line in f]
+                 datum['ET1Country'] = row['Word0NE'] if row['Word1Token'] in country_list else ""
+                 datum['CountryET2'] = row['Word1NE'] if row['Word0Token'] in country_list else ""
 
         data_list.append(datum)
 
