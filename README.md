@@ -1,6 +1,6 @@
 # deis-rel
 
-Relations project (Annie Thorburn, Jennifer Storozum, Nicholas Miller)
+IE Relations project (Annie Thorburn, Jennifer Storozum, Nicholas Miller)
 
 ## Files
 
@@ -13,8 +13,10 @@ Relations project (Annie Thorburn, Jennifer Storozum, Nicholas Miller)
 - countries.txt: list of country names
 - relation_list.txt: list of possible relations (can be ignored)
 
-##How to run
+- The other files in the repository are copies of the daata and can be ignored
+
+## How to run
 
 - Ensure that the 'data' folder from the assignment instructions is in the parent folder of these scripts
 - Run classifiers.py
-- If you want to experiment with different combinations of features, add or remove items from the BASELINE_FEATURES and ADDITIONAL_FEATURES variables at the top of classifiers.py
+- If you want to experiment with different combinations of features, add or remove features from the `BASELINE_FEATURES` and `ADDITIONAL_FEATURES` variables at the top of classifiers.py
