@@ -20,9 +20,7 @@ from sklearn.dummy import DummyClassifier
 
 from preprocess import read_parsed_file
 
-import codecs
-import itertools
-import os
+import codecs, itertools, os, re
 
 from sklearn.svm import *
 from sklearn.metrics import *
@@ -46,16 +44,23 @@ trees = {filename.rstrip('.head.rel.tokenized.raw.parse'):read_parsed_file(filen
 def chunking_features(row):
     filename = row["File"]
     sent_index = row["Word0Sent"]
-    word0token = row["Word0Token"]
-    word1token = row["Word1Token"]
+    # Punctuation in a token sometimes differs between a data file and a parsed file
+    # Also, proper names consisting of a first name and a last name are single tokens
+    # broken up by an underscore in the data file, but two separate tokens in the parsed file
+    word0tokens = [w for w in re.split('_|[^\w\.]', row["Word0Token"]) if w]
+    word1tokens = [w for w in re.split('_|[^\w\.]', row["Word1Token"]) if w]
 
     # From the parse tree for the given sentence, obtain the smallest subtree containing both words
-    subtrees = [t for t in trees[filename][sent_index].subtrees() if word0token in t.leaves() and word1token in t.leaves()]
+    subtrees = [t for t in trees[filename][sent_index].subtrees() if all (w in list(itertools.chain.from_iterable([re.split('_|[^\w\.]',l) for l in t.leaves()])) for w in (word0tokens + word1tokens))]
     subtrees.sort(key = lambda i:len(i.leaves()))
     try:
         chunk = subtrees[0]
     except:
-        return {} #This is a kludge to get around situations in which one of the words is represented differently in the data set than in the parse file (e.g. "(AP" vs "AP" in APW20001001.2021.0521). 
+        #print filename
+        #print word0tokens
+        #print word1tokens
+        #trees[filename][sent_index].pretty_print()
+        return {}
 
     label = chunk.label()
     height = chunk.height()
