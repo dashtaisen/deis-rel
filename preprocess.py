@@ -1,23 +1,24 @@
 #Various preprocessing tools
 
 import pandas as pd
-import re, codecs
+import re, codecs, os
 from nltk import Tree
 
-SAMPLE_PARSED = "../data/parsed-files/APW20001001.2021.0521.head.rel.tokenized.raw.parse"
-SAMPLE_TAGGED = "../data/postagged-files/APW20001001.2021.0521.head.rel.tokenized.raw.tag"
-TRAIN_GOLD = "../data/rel-trainset.gold"
-DEV_GOLD = "../data/rel-devset.gold"
-TEST_GOLD = "../data/rel-testset.gold"
+TRAIN_GOLD = os.sep.join((os.pardir,'data','rel-trainset.gold'))
+DEV_GOLD = os.sep.join((os.pardir,'data','rel-devset.gold'))
+TEST_GOLD = os.sep.join((os.pardir,'data','rel-testset.gold'))
 
-POS_DIR = "../data/postaged-files/"
-PARSED_DIR = "../data/parsed-files/"
+PARSED = os.sep.join((os.pardir,'data','parsed-files'))
+POS_TAGGED = os.sep.join((os.pardir,'data','postagged-files'))
+
+SAMPLE_PARSED = os.sep.join((PARSED,'APW20001001.2021.0521.head.rel.tokenized.raw.parse'))
+SAMPLE_TAGGED = os.sep.join((POS_TAGGED, 'APW20001001.2021.0521.head.rel.tokenized.raw.tag'))
 
 #Column names for gold data
 GOLD_COLS = "Rel,File,Word0Sent,Word0Start,Word0End,Word0NE,Word0Num,Word0Token,Word1Sent,Word1Start,Word1End,Word1NE,Word1Num,Word1Token".split(",")
 
 def read_parsed_file(filename):
-    filepath = PARSED_DIR + filename
+    filepath = os.sep.join((PARSED, filename))
 
     infile = codecs.open(filepath,mode='r+',encoding='utf-8')
     lines = infile.readlines()

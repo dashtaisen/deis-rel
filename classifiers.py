@@ -18,23 +18,20 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.metrics import classification_report
 from sklearn.dummy import DummyClassifier
 
-from preprocess import read_parsed_file, PARSED_DIR
+from preprocess import read_parsed_file
 
 import codecs
 import itertools
 import os
 
-TRAIN_GOLD = ""
-DEV_GOLD = ""
-TEST_GOLD = ""
-POS_TAGGED = ""
 from sklearn.svm import *
 from sklearn.metrics import *
 
-TRAIN_GOLD = "...\\data\\rel-trainset.gold"
-DEV_GOLD = "...data\\rel-devset.gold"
-TEST_GOLD = "...\\rel-testset.gold"
-POS_TAGGED = "...\\postagged-files"
+TRAIN_GOLD = os.sep.join((os.pardir,'data','rel-trainset.gold'))
+DEV_GOLD = os.sep.join((os.pardir,'data','rel-devset.gold'))
+TEST_GOLD = os.sep.join((os.pardir,'data','rel-testset.gold'))
+POS_TAGGED = os.sep.join((os.pardir,'data','postagged-files'))
+PARSED = os.sep.join((os.pardir,'data','parsed-files'))
 
 #Column names for gold data
 COLUMNS = "Rel,File,Word0Sent,Word0Start,Word0End,Word0NE,Word0Num,Word0Token,Word1Sent,Word1Start,Word1End,Word1NE,Word1Num,Word1Token".split(",")
@@ -44,7 +41,7 @@ FEATURES = ["Word0NE","Word0Token","Word1NE","Word1Token", "Word0Num", "Word1Num
 
 LABEL = "Rel"
 
-trees = {filename.rstrip('.head.rel.tokenized.raw.parse'):read_parsed_file(filename) for filename in os.listdir(PARSED_DIR)}
+trees = {filename.rstrip('.head.rel.tokenized.raw.parse'):read_parsed_file(filename) for filename in os.listdir(PARSED)}
 
 def chunking_features(row):
     filename = row["File"]
