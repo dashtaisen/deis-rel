@@ -20,7 +20,11 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.metrics import classification_report
 from sklearn.dummy import DummyClassifier
 
+from preprocess import read_parsed_file, PARSED_DIR
+
+import codecs
 import itertools
+import os
 
 TRAIN_GOLD = "../data/rel-trainset.gold"
 DEV_GOLD = "../data/rel-devset.gold"
@@ -32,6 +36,28 @@ COLUMNS = "Rel,File,Word0Sent,Word0Start,Word0End,Word0NE,Word0Num,Word0Token,Wo
 FEATURES = ["Word0NE","Word0Token","Word1NE","Word1Token"]
 
 LABEL = "Rel"
+
+trees = {filename.rstrip('.head.rel.tokenized.raw.parse'):read_parsed_file(filename) for filename in os.listdir(PARSED_DIR)}
+
+def chunking_features(row):
+    filename = row["File"]
+    sent_index = row["Word0Sent"]
+    word0token = row["Word0Token"]
+    word1token = row["Word1Token"]
+
+    # From the parse tree for the given sentence, obtain the smallest subtree containing both words
+    subtrees = [t for t in trees[filename][sent_index].subtrees() if word0token in t.leaves() and word1token in t.leaves()]
+    subtrees.sort(key = lambda i:len(i.leaves()))
+    try:
+        chunk = subtrees[0]
+    except:
+        return {} #This is a kludge to get around situations in which one of the words is represented differently in the data set than in the parse file (e.g. "(AP" vs "AP" in APW20001001.2021.0521). 
+
+    label = chunk.label()
+    height = chunk.height()
+    children = len(chunk) #The number of children of the root of the phrase chunk
+
+    return {"chunk_label":label, "chunk_height":height, "chunk_children":children}
 
 def featurize(df,features=FEATURES, label=LABEL):
     """Convert data to features
@@ -48,6 +74,9 @@ def featurize(df,features=FEATURES, label=LABEL):
         datum = dict()
         for feature in FEATURES:
             datum[feature] = row[feature]
+        chunk_features = chunking_features(row)
+        for chunk_feature in chunk_features:
+            datum[chunk_feature] = chunk_features[chunk_feature]
         data_list.append(datum)
 
     return data_list, y
